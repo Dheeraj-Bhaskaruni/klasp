@@ -240,7 +240,7 @@ def hello(name):
       });
     }
 
-    const BASE = '{{ request.script_root }}';
+    const BASE = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
 
     function setTTSMode(mode) {
       ttsMode = mode;
