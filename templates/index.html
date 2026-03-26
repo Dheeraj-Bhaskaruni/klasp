@@ -240,9 +240,11 @@ def hello(name):
       });
     }
 
+    const BASE = window.location.pathname.replace(/\/$/, '');
+
     function setTTSMode(mode) {
       ttsMode = mode;
-      fetch('/api/tts-mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) });
+      fetch(BASE + '/api/tts-mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) });
     }
 
     {% if not has_server_tts %}
@@ -311,7 +313,7 @@ def hello(name):
       if (!code) { alert('Paste some code first!'); return; }
       if (isListening && recognition) { recognition.stop(); isListening = false; }
       isSending = true;
-      const res = await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(BASE + '/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, lesson_id: currentLessonId, group: currentGroup !== '__default__' ? currentGroup : null, tts_mode: ttsMode }) });
       const data = await res.json();
       document.getElementById('input-screen').classList.add('hidden');
@@ -326,7 +328,7 @@ def hello(name):
       if (isListening && recognition) { recognition.stop(); isListening = false; }
       if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
       isSending = true;
-      const res = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+      const res = await fetch(BASE + '/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
       const data = await res.json();
       isSending = false;
       await handleResponse(data);
@@ -343,7 +345,7 @@ def hello(name):
       if (isListening && recognition) { recognition.stop(); isListening = false; }
       if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
       isSending = true;
-      const res = await fetch('/api/end', { method: 'POST' }); const data = await res.json();
+      const res = await fetch(BASE + '/api/end', { method: 'POST' }); const data = await res.json();
       isSending = false; await handleResponse(data);
       document.getElementById('teach-screen').classList.add('hidden');
       document.getElementById('complete-screen').classList.remove('hidden');
@@ -363,7 +365,7 @@ def hello(name):
       if (isListening && recognition) { recognition.stop(); isListening = false; }
       if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
       isSending = true;
-      fetch('/api/speak-line', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ line: n }) })
+      fetch(BASE + '/api/speak-line', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ line: n }) })
         .then(r => r.json()).then(async d => { isSending = false; await handleResponse(d); autoListen(); });
     }
 
@@ -414,7 +416,7 @@ def hello(name):
     // ── Groups & Lessons ──
 
     async function loadGroups() {
-      const res = await fetch('/api/groups'); groups = await res.json();
+      const res = await fetch(BASE + '/api/groups'); groups = await res.json();
       renderGroupTabs(); updateGroupSelect(); loadLessons();
     }
 
@@ -436,7 +438,7 @@ def hello(name):
 
     async function createGroup() {
       const n = document.getElementById('new-group-name').value.trim(); if (!n) return;
-      await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n }) });
+      await fetch(BASE + '/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n }) });
       document.getElementById('new-group-dialog').classList.add('hidden');
       document.getElementById('new-group-name').value = '';
       await loadGroups();
@@ -444,13 +446,13 @@ def hello(name):
 
     async function deleteGroup(id) {
       if (!confirm('Delete this group and all its lessons?')) return;
-      await fetch('/api/groups/' + id, { method: 'DELETE' });
+      await fetch(BASE + '/api/groups/' + id, { method: 'DELETE' });
       if (currentGroup === id) currentGroup = '__default__';
       await loadGroups();
     }
 
     async function loadLessons() {
-      const res = await fetch('/api/lessons?group=' + currentGroup);
+      const res = await fetch(BASE + '/api/lessons?group=' + currentGroup);
       const lessons = await res.json();
       const c = document.getElementById('lessons-list');
       const n = document.getElementById('no-lessons');
@@ -466,7 +468,7 @@ def hello(name):
     }
 
     async function loadLesson(id) {
-      const res = await fetch('/api/lessons/' + id + '?group=' + currentGroup);
+      const res = await fetch(BASE + '/api/lessons/' + id + '?group=' + currentGroup);
       const d = await res.json();
       document.getElementById('code-input').value = d.code;
       currentLessonId = id;
@@ -486,7 +488,7 @@ def hello(name):
       const group = document.getElementById('lesson-group-select').value;
       if (!name) { alert('Enter a lesson name'); return; }
       if (!code) { alert('Paste code first'); return; }
-      const res = await fetch('/api/lessons', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(BASE + '/api/lessons', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, code, group: group !== '__default__' ? group : null }) });
       const d = await res.json();
       currentLessonId = d.id;
@@ -498,7 +500,7 @@ def hello(name):
 
     async function deleteLesson(id) {
       if (!confirm('Delete this lesson?')) return;
-      await fetch('/api/lessons/' + id + '?group=' + currentGroup, { method: 'DELETE' });
+      await fetch(BASE + '/api/lessons/' + id + '?group=' + currentGroup, { method: 'DELETE' });
       if (currentLessonId === id) currentLessonId = null;
       await loadGroups();
     }
@@ -531,7 +533,7 @@ def hello(name):
     }
 
     async function checkAuth() {
-      const res = await fetch('/api/auth/me'); const d = await res.json();
+      const res = await fetch(BASE + '/api/auth/me'); const d = await res.json();
       if (d.logged_in) showApp(d.display_name || d.user);
     }
 
@@ -543,7 +545,7 @@ def hello(name):
     }
 
     async function logout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(BASE + '/api/auth/logout', { method: 'POST' });
       document.getElementById('app-main').classList.add('hidden');
       document.getElementById('auth-screen').classList.remove('hidden');
       document.getElementById('auth-username').value = '';
