@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/$USER/klasp
+    - /bin/cp -R app.py config.py passenger_wsgi.py requirements.txt $DEPLOYPATH/
+    - /bin/cp -R api/ $DEPLOYPATH/api/
+    - /bin/cp -R core/ $DEPLOYPATH/core/
+    - /bin/cp -R templates/ $DEPLOYPATH/templates/
+    - mkdir -p $DEPLOYPATH/lessons $DEPLOYPATH/data

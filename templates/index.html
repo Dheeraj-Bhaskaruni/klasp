@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Klasp</title>
+  <!-- Tailwind CSS + DaisyUI (CDN — nothing to install) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.22/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <style>
+    body { background: #0b0b11; min-height: 100vh; }
+    .code-font { font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', monospace; }
+    @keyframes pulse-ring {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50% { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+    }
+    .mic-pulse { animation: pulse-ring 1.5s infinite; }
+  </style>
+</head>
+<body class="text-gray-200">
+  <div class="max-w-3xl mx-auto px-4 py-6">
+
+    <!-- ══════════ AUTH SCREEN ══════════ -->
+    <div id="auth-screen" class="flex flex-col items-center justify-center min-h-[70vh]">
+      <h1 class="text-3xl font-bold text-white mb-1">Klasp</h1>
+      <p class="text-sm text-gray-500 mb-8">Learn anything line by line — every detail spoken aloud</p>
+      <div class="card bg-base-200 w-full max-w-sm shadow-xl">
+        <div class="card-body gap-3">
+          <div id="auth-error" class="text-error text-sm hidden"></div>
+          <input id="auth-username" type="text" placeholder="Username" class="input input-bordered w-full" onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
+          <input id="auth-password" type="password" placeholder="Password" class="input input-bordered w-full" onkeydown="if(event.key==='Enter')authSubmit()">
+          <input id="auth-display" type="text" placeholder="Display name (optional)" class="input input-bordered w-full hidden">
+          <button class="btn btn-primary w-full" onclick="authSubmit()" id="auth-btn">Log In</button>
+          <p class="text-center text-sm text-gray-500 mt-1">
+            <span id="auth-toggle-text">No account?</span>
+            <a class="link link-primary ml-1" onclick="toggleAuthMode()" id="auth-toggle-link">Sign up</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ MAIN APP ══════════ -->
+    <div id="app-main" class="hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h1 class="text-2xl font-bold text-white">Klasp</h1>
+          <p class="text-xs text-gray-500">Paste anything. Every detail spoken aloud. Learn line by line.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="user-display" class="badge badge-ghost text-xs"></span>
+          <button class="btn btn-ghost btn-xs text-gray-500" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <!-- ── INPUT SCREEN ── -->
+      <div id="input-screen">
+        <!-- Settings row -->
+        <div class="flex gap-3 mb-4 flex-wrap items-center text-xs text-gray-500">
+          <label class="flex items-center gap-1">
+            TTS:
+            <select id="tts-mode" onchange="setTTSMode(this.value)" class="select select-bordered select-xs">
+              <option value="browser" selected>Browser</option>
+              <option value="server" id="server-tts-option">Server (macOS)</option>
+            </select>
+          </label>
+          <label class="flex items-center gap-1">
+            Voice:
+            <select id="voice-select" class="select select-bordered select-xs max-w-[140px]"></select>
+          </label>
+        </div>
+
+        <!-- Groups & Lessons -->
+        <div id="saved-lessons" class="mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-gray-400">Lessons</h3>
+            <button class="btn btn-ghost btn-xs" onclick="showNewGroupDialog()">+ Group</button>
+          </div>
+          <div id="groups-tabs" class="flex gap-1.5 mb-3 flex-wrap"></div>
+          <div id="lessons-list" class="space-y-2"></div>
+          <div id="no-lessons" class="text-xs text-gray-600 py-2">No lessons yet. Paste code and save one.</div>
+        </div>
+
+        <!-- New group dialog -->
+        <div id="new-group-dialog" class="hidden mb-3">
+          <div class="flex gap-2">
+            <input id="new-group-name" type="text" placeholder="Group name" class="input input-bordered input-sm flex-1" onkeydown="if(event.key==='Enter')createGroup()">
+            <button class="btn btn-info btn-sm" onclick="createGroup()">Create</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('new-group-dialog').classList.add('hidden')">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Code input -->
+        <textarea id="code-input" class="textarea textarea-bordered w-full h-52 code-font text-sm leading-7 resize-y bg-base-200" placeholder="Paste your code here...
+
+Example:
+def hello(name):
+    print(f&quot;Hello, {name}!&quot;)
+    return True"></textarea>
+
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <button class="btn btn-primary" onclick="startSession()">Start Teaching</button>
+          <button class="btn btn-ghost" onclick="showSaveDialog()">Save Lesson</button>
+        </div>
+
+        <!-- Save dialog -->
+        <div id="save-dialog" class="hidden mt-3">
+          <div class="flex gap-2 flex-wrap">
+            <input id="lesson-name" type="text" placeholder="Lesson name" class="input input-bordered input-sm flex-1 min-w-[140px]" onkeydown="if(event.key==='Enter')saveLesson()">
+            <select id="lesson-group-select" class="select select-bordered select-sm max-w-[150px]"></select>
+            <button class="btn btn-success btn-sm" onclick="saveLesson()">Save</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('save-dialog').classList.add('hidden')">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TEACH SCREEN ── -->
+      <div id="teach-screen" class="hidden">
+        <!-- Progress -->
+        <progress class="progress progress-success w-full mb-4" id="progress-bar" value="0" max="100"></progress>
+
+        <div class="flex gap-4 mb-3 text-xs text-gray-500 flex-wrap">
+          <div>Line <span id="stat-current" class="text-gray-300 font-bold">1</span> of <span id="stat-total" class="text-gray-300 font-bold">0</span></div>
+          <div>Learned: <span id="stat-learned" class="text-success font-bold">0</span></div>
+          <div>Speed: <span id="stat-rate" class="text-gray-300 font-bold">160</span></div>
+        </div>
+
+        <!-- Code lines -->
+        <div id="code-container" class="bg-base-200 rounded-xl border border-base-300 overflow-y-auto max-h-[35vh] mb-4 scroll-smooth"></div>
+
+        <!-- Current line box -->
+        <div id="current-box" class="bg-base-200 border border-primary/25 rounded-xl p-4 mb-4">
+          <div class="text-xs text-primary font-bold mb-1">Currently Reading:</div>
+          <div id="current-code" class="code-font text-white text-base mb-2 break-all"></div>
+          <div id="current-spoken" class="text-xs text-gray-500 italic"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-2 flex-wrap items-center">
+          <button id="mic-btn" onclick="toggleMic()" class="btn btn-circle btn-primary w-12 h-12" title="Voice command">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <button class="btn btn-success btn-sm" onclick="sendCommand('next')">Next</button>
+          <button class="btn btn-info btn-sm" onclick="sendCommand('repeat')">Repeat</button>
+          <button class="btn btn-ghost btn-sm" onclick="sendCommand('repeat 3 times')">3x</button>
+          <button class="btn btn-ghost btn-sm" onclick="sendCommand('previous')">Back</button>
+          <button class="btn btn-ghost btn-sm" onclick="sendCommand('faster')">Faster</button>
+          <button class="btn btn-ghost btn-sm" onclick="sendCommand('slower')">Slower</button>
+          <button class="btn btn-error btn-outline btn-sm" onclick="endSession()">End</button>
+        </div>
+
+        <!-- Text command input -->
+        <div class="flex gap-2 mt-3">
+          <input id="cmd-input" type="text" class="input input-bordered input-sm flex-1" placeholder="Type: next, repeat, go to line 5, done..."
+            onkeydown="if(event.key==='Enter'){sendCommand(this.value);this.value='';}">
+          <button class="btn btn-primary btn-sm" onclick="sendCommand(document.getElementById('cmd-input').value);document.getElementById('cmd-input').value='';">Send</button>
+        </div>
+
+        <div id="message" class="hidden mt-3 text-xs bg-base-200 rounded-lg px-3 py-2 text-gray-400"></div>
+      </div>
+
+      <!-- ── COMPLETE SCREEN ── -->
+      <div id="complete-screen" class="hidden">
+        <div class="text-center py-16">
+          <h2 class="text-2xl font-bold text-success mb-2">Session Complete!</h2>
+          <p id="complete-text" class="text-gray-500 mb-6"></p>
+          <button class="btn btn-primary" onclick="resetAll()">Start New Session</button>
+        </div>
+      </div>
+
+    </div><!-- end app-main -->
+  </div>
+
+  <script>
+    let recognition = null;
+    let isListening = false;
+    let continuousMode = true;
+    let isSending = false;
+    let isSpeaking = false;
+    let hasSTT = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    let ttsMode = 'browser';
+    let selectedVoice = null;
+    let currentLessonId = null;
+    let currentGroup = '__default__';
+    let groups = [];
+
+    // ── Browser TTS ──
+
+    function populateVoices() {
+      const sel = document.getElementById('voice-select');
+      const voices = speechSynthesis.getVoices();
+      sel.innerHTML = '';
+      const english = voices.filter(v => v.lang.startsWith('en'));
+      const list = english.length > 0 ? english : voices;
+
+      list.forEach((v, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = v.name.substring(0, 25) + (v.lang ? ` (${v.lang})` : '');
+        if (v.name.includes('Samantha') || v.name.includes('Google') || v.default) {
+          opt.selected = true;
+          selectedVoice = v;
+        }
+        sel.appendChild(opt);
+      });
+      if (!selectedVoice && list.length > 0) selectedVoice = list[0];
+    }
+
+    if (window.speechSynthesis) {
+      speechSynthesis.onvoiceschanged = populateVoices;
+      populateVoices();
+    }
+
+    document.getElementById('voice-select').addEventListener('change', function() {
+      const voices = speechSynthesis.getVoices();
+      const english = voices.filter(v => v.lang.startsWith('en'));
+      const list = english.length > 0 ? english : voices;
+      selectedVoice = list[parseInt(this.value)] || voices[0];
+    });
+
+    function browserSpeak(texts) {
+      return new Promise((resolve) => {
+        if (!texts || texts.length === 0 || !window.speechSynthesis) { resolve(); return; }
+        let index = 0;
+        function next() {
+          if (index >= texts.length) { resolve(); return; }
+          const u = new SpeechSynthesisUtterance(texts[index]);
+          if (selectedVoice) u.voice = selectedVoice;
+          u.rate = 0.9;
+          u.onend = () => { index++; next(); };
+          u.onerror = () => { index++; next(); };
+          speechSynthesis.speak(u);
+        }
+        next();
+      });
+    }
+
+    function setTTSMode(mode) {
+      ttsMode = mode;
+      fetch('/api/tts-mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) });
+    }
+
+    {% if not has_server_tts %}
+    document.getElementById('server-tts-option').style.display = 'none';
+    {% endif %}
+
+    // ── STT ──
+
+    function initSpeechRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { document.getElementById('mic-btn').classList.add('btn-disabled', 'opacity-30'); return; }
+      recognition = new SR();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+
+      recognition.onresult = (e) => { const t = e.results[0][0].transcript; showMessage("You said: " + t); sendCommand(t); };
+      recognition.onend = () => { isListening = false; micUI(); if (continuousMode && !isSending && !isSpeaking) autoListen(); };
+      recognition.onerror = (e) => {
+        isListening = false; micUI();
+        if (e.error !== 'no-speech' && e.error !== 'aborted') showMessage("Mic error: " + e.error);
+        if (continuousMode && !isSending && !isSpeaking) setTimeout(() => autoListen(), 300);
+      };
+    }
+
+    function micUI() {
+      const btn = document.getElementById('mic-btn');
+      btn.classList.remove('btn-primary', 'btn-error', 'btn-warning', 'mic-pulse');
+      if (isSpeaking) { btn.classList.add('btn-warning'); }
+      else if (isListening) { btn.classList.add('btn-error', 'mic-pulse'); }
+      else { btn.classList.add('btn-primary'); }
+    }
+
+    function autoListen() {
+      if (!hasSTT || !recognition || isListening || isSending || isSpeaking) return;
+      if (document.getElementById('teach-screen').classList.contains('hidden')) return;
+      try { recognition.start(); isListening = true; micUI(); showMessage("Listening..."); }
+      catch (e) { setTimeout(() => autoListen(), 500); }
+    }
+
+    function toggleMic() {
+      if (!hasSTT) { showMessage("No speech recognition. Use the text input."); return; }
+      if (!recognition) initSpeechRecognition();
+      if (!recognition) return;
+      if (isListening) { continuousMode = false; recognition.stop(); isListening = false; micUI(); showMessage("Mic off."); }
+      else { continuousMode = true; autoListen(); }
+    }
+
+    // ── API response handler ──
+
+    async function handleResponse(data) {
+      if (data.message) showMessage(data.message);
+      updateUI(data);
+      if (data.speak_queue && data.speak_queue.length > 0 && ttsMode === 'browser') {
+        isSpeaking = true; micUI();
+        await browserSpeak(data.speak_queue);
+        isSpeaking = false; micUI();
+      }
+      return data;
+    }
+
+    // ── API calls ──
+
+    async function startSession() {
+      const code = document.getElementById('code-input').value.trim();
+      if (!code) { alert('Paste some code first!'); return; }
+      if (isListening && recognition) { recognition.stop(); isListening = false; }
+      isSending = true;
+      const res = await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, lesson_id: currentLessonId, group: currentGroup !== '__default__' ? currentGroup : null, tts_mode: ttsMode }) });
+      const data = await res.json();
+      document.getElementById('input-screen').classList.add('hidden');
+      document.getElementById('teach-screen').classList.remove('hidden');
+      isSending = false;
+      await handleResponse(data);
+      continuousMode = true; autoListen();
+    }
+
+    async function sendCommand(cmd) {
+      if (!cmd || !cmd.trim()) return;
+      if (isListening && recognition) { recognition.stop(); isListening = false; }
+      if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
+      isSending = true;
+      const res = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+      const data = await res.json();
+      isSending = false;
+      await handleResponse(data);
+      if (!data.active && data.total > 0) {
+        continuousMode = false;
+        document.getElementById('teach-screen').classList.add('hidden');
+        document.getElementById('complete-screen').classList.remove('hidden');
+        document.getElementById('complete-text').textContent = `You learned ${data.learned_count} out of ${data.total} lines.`;
+      } else { autoListen(); }
+    }
+
+    async function endSession() {
+      continuousMode = false;
+      if (isListening && recognition) { recognition.stop(); isListening = false; }
+      if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
+      isSending = true;
+      const res = await fetch('/api/end', { method: 'POST' }); const data = await res.json();
+      isSending = false; await handleResponse(data);
+      document.getElementById('teach-screen').classList.add('hidden');
+      document.getElementById('complete-screen').classList.remove('hidden');
+    }
+
+    function resetAll() {
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      document.getElementById('complete-screen').classList.add('hidden');
+      document.getElementById('teach-screen').classList.add('hidden');
+      document.getElementById('input-screen').classList.remove('hidden');
+      document.getElementById('code-input').value = '';
+      currentLessonId = null;
+      loadGroups();
+    }
+
+    function clickLine(n) {
+      if (isListening && recognition) { recognition.stop(); isListening = false; }
+      if (isSpeaking && window.speechSynthesis) { speechSynthesis.cancel(); isSpeaking = false; }
+      isSending = true;
+      fetch('/api/speak-line', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ line: n }) })
+        .then(r => r.json()).then(async d => { isSending = false; await handleResponse(d); autoListen(); });
+    }
+
+    // ── UI update ──
+
+    function updateUI(data) {
+      if (!data.lines) return;
+      document.getElementById('stat-current').textContent = data.current;
+      document.getElementById('stat-total').textContent = data.total;
+      document.getElementById('stat-learned').textContent = data.learned_count;
+      document.getElementById('stat-rate').textContent = data.rate;
+      const pct = data.total > 0 ? (data.learned_count / data.total) * 100 : 0;
+      document.getElementById('progress-bar').value = pct;
+
+      const c = document.getElementById('code-container');
+      c.innerHTML = data.lines.map(l => {
+        const cur = l.current ? 'bg-primary/10 border-l-primary' : '';
+        const lrn = l.learned ? 'border-l-success' : '';
+        const icon = l.learned ? '<span class="text-success">&#10003;</span>' : (l.current ? '<span class="text-primary">&#9658;</span>' : '<span class="text-gray-700">&middot;</span>');
+        return `<div class="flex items-start px-3 py-1 code-font text-xs leading-7 cursor-pointer border-l-[3px] border-transparent hover:bg-white/[0.02] transition ${cur} ${lrn}" onclick="clickLine(${l.number})">
+          <span class="w-5 text-center mr-1 shrink-0 mt-0.5 text-[0.65rem]">${icon}</span>
+          <span class="w-7 text-right text-gray-600 mr-3 shrink-0 select-none text-[0.65rem] mt-0.5">${l.number}</span>
+          <span class="flex-1 whitespace-pre-wrap break-all">${esc(l.code)}</span>
+        </div>`;
+      }).join('');
+
+      const cl = data.lines.find(l => l.current);
+      const box = document.getElementById('current-box');
+      if (cl) {
+        document.getElementById('current-code').textContent = cl.code;
+        document.getElementById('current-spoken').textContent = '"' + cl.spoken + '"';
+        box.classList.remove('hidden');
+        const el = c.querySelector('.bg-primary\\/10');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else { box.classList.add('hidden'); }
+    }
+
+    function showMessage(msg) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+    // ── Groups & Lessons ──
+
+    async function loadGroups() {
+      const res = await fetch('/api/groups'); groups = await res.json();
+      renderGroupTabs(); updateGroupSelect(); loadLessons();
+    }
+
+    function renderGroupTabs() {
+      document.getElementById('groups-tabs').innerHTML = groups.map(g => {
+        const a = g.id === currentGroup ? 'btn-primary' : 'btn-ghost';
+        const del = g.id !== '__default__' ? `<span class="ml-1 opacity-50 hover:opacity-100 hover:text-error" onclick="event.stopPropagation();deleteGroup('${g.id}')">&times;</span>` : '';
+        return `<button class="btn btn-xs ${a}" onclick="switchGroup('${g.id}')">${esc(g.name)} <span class="opacity-50">(${g.count||0})</span>${del}</button>`;
+      }).join('');
+    }
+
+    function updateGroupSelect() {
+      document.getElementById('lesson-group-select').innerHTML = groups.map(g =>
+        `<option value="${g.id}" ${g.id===currentGroup?'selected':''}>${esc(g.name)}</option>`).join('');
+    }
+
+    function switchGroup(id) { currentGroup = id; renderGroupTabs(); loadLessons(); }
+    function showNewGroupDialog() { document.getElementById('new-group-dialog').classList.remove('hidden'); document.getElementById('new-group-name').focus(); }
+
+    async function createGroup() {
+      const n = document.getElementById('new-group-name').value.trim(); if (!n) return;
+      await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n }) });
+      document.getElementById('new-group-dialog').classList.add('hidden');
+      document.getElementById('new-group-name').value = '';
+      await loadGroups();
+    }
+
+    async function deleteGroup(id) {
+      if (!confirm('Delete this group and all its lessons?')) return;
+      await fetch('/api/groups/' + id, { method: 'DELETE' });
+      if (currentGroup === id) currentGroup = '__default__';
+      await loadGroups();
+    }
+
+    async function loadLessons() {
+      const res = await fetch('/api/lessons?group=' + currentGroup);
+      const lessons = await res.json();
+      const c = document.getElementById('lessons-list');
+      const n = document.getElementById('no-lessons');
+      if (!lessons.length) { c.innerHTML = ''; n.classList.remove('hidden'); return; }
+      n.classList.add('hidden');
+      c.innerHTML = lessons.map(l => {
+        const prog = l.learned.length > 0 ? `${l.learned.length}/${l.lines} learned` : `${l.lines} lines`;
+        return `<div class="flex items-center justify-between bg-base-200 border border-base-300 rounded-xl px-4 py-3 cursor-pointer hover:border-primary transition" onclick="loadLesson('${l.id}')">
+          <div class="min-w-0"><div class="font-semibold text-sm text-gray-200 truncate">${esc(l.name)}</div><div class="text-xs text-gray-600">${prog}</div></div>
+          <button class="btn btn-ghost btn-xs text-gray-600 hover:text-error" onclick="event.stopPropagation();deleteLesson('${l.id}')">&#10005;</button>
+        </div>`;
+      }).join('');
+    }
+
+    async function loadLesson(id) {
+      const res = await fetch('/api/lessons/' + id + '?group=' + currentGroup);
+      const d = await res.json();
+      document.getElementById('code-input').value = d.code;
+      currentLessonId = id;
+      showMessage('Loaded: ' + d.name);
+    }
+
+    function showSaveDialog() {
+      if (!document.getElementById('code-input').value.trim()) { alert('Paste some code first!'); return; }
+      updateGroupSelect();
+      document.getElementById('save-dialog').classList.remove('hidden');
+      document.getElementById('lesson-name').focus();
+    }
+
+    async function saveLesson() {
+      const name = document.getElementById('lesson-name').value.trim();
+      const code = document.getElementById('code-input').value.trim();
+      const group = document.getElementById('lesson-group-select').value;
+      if (!name) { alert('Enter a lesson name'); return; }
+      if (!code) { alert('Paste code first'); return; }
+      const res = await fetch('/api/lessons', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, code, group: group !== '__default__' ? group : null }) });
+      const d = await res.json();
+      currentLessonId = d.id;
+      document.getElementById('save-dialog').classList.add('hidden');
+      document.getElementById('lesson-name').value = '';
+      showMessage(d.message);
+      await loadGroups();
+    }
+
+    async function deleteLesson(id) {
+      if (!confirm('Delete this lesson?')) return;
+      await fetch('/api/lessons/' + id + '?group=' + currentGroup, { method: 'DELETE' });
+      if (currentLessonId === id) currentLessonId = null;
+      await loadGroups();
+    }
+
+    // ── Auth ──
+
+    let authMode = 'login';
+
+    function toggleAuthMode() {
+      authMode = authMode === 'login' ? 'register' : 'login';
+      document.getElementById('auth-btn').textContent = authMode === 'login' ? 'Log In' : 'Sign Up';
+      document.getElementById('auth-toggle-text').textContent = authMode === 'login' ? 'No account?' : 'Already have one?';
+      document.getElementById('auth-toggle-link').textContent = authMode === 'login' ? 'Sign up' : 'Log in';
+      document.getElementById('auth-display').classList.toggle('hidden', authMode === 'login');
+      document.getElementById('auth-error').classList.add('hidden');
+    }
+
+    async function authSubmit() {
+      const u = document.getElementById('auth-username').value.trim();
+      const p = document.getElementById('auth-password').value;
+      const dn = document.getElementById('auth-display').value.trim() || u;
+      const err = document.getElementById('auth-error');
+      if (!u || !p) { err.textContent = 'Enter username and password'; err.classList.remove('hidden'); return; }
+      const url = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const body = authMode === 'login' ? { username: u, password: p } : { username: u, password: p, display_name: dn };
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json();
+      if (d.error) { err.textContent = d.error; err.classList.remove('hidden'); return; }
+      showApp(d.display_name || d.user);
+    }
+
+    async function checkAuth() {
+      const res = await fetch('/api/auth/me'); const d = await res.json();
+      if (d.logged_in) showApp(d.display_name || d.user);
+    }
+
+    function showApp(name) {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-main').classList.remove('hidden');
+      document.getElementById('user-display').textContent = name;
+      initSpeechRecognition(); loadGroups();
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      document.getElementById('app-main').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('auth-username').value = '';
+      document.getElementById('auth-password').value = '';
+    }
+
+    // ── Init ──
+    checkAuth();
+    if (!hasSTT) showMessage("No speech recognition in this browser. Use text input.");
+  </script>
+</body>
+</html>
