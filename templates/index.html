@@ -524,7 +524,7 @@ def hello(name):
       const dn = document.getElementById('auth-display').value.trim() || u;
       const err = document.getElementById('auth-error');
       if (!u || !p) { err.textContent = 'Enter username and password'; err.classList.remove('hidden'); return; }
-      const url = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const url = BASE + (authMode === 'login' ? '/api/auth/login' : '/api/auth/register');
       const body = authMode === 'login' ? { username: u, password: p } : { username: u, password: p, display_name: dn };
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
