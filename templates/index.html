@@ -240,7 +240,7 @@ def hello(name):
       });
     }
 
-    const BASE = window.location.pathname.replace(/\/$/, '');
+    const BASE = '{{ request.script_root }}';
 
     function setTTSMode(mode) {
       ttsMode = mode;
